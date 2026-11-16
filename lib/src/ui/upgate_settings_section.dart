@@ -80,8 +80,12 @@ class UpgateSettingsSection extends StatelessWidget {
         } else if (manifest.isOffline) {
           pillLabel = 'OFFLINE';
           pillColor = colorScheme.onSurfaceVariant;
+        } else if (manifest.status == 'MAINTENANCE' ||
+            manifest.status == 'UNREGISTERED') {
+          pillLabel = 'MAINTENANCE';
+          pillColor = colorScheme.error;
         } else if (manifest.isBlocking) {
-          pillLabel = 'UPDATE REQUIRED';
+          pillLabel = 'MANDATORY';
           pillColor = colorScheme.error;
         } else if (isAhead) {
           pillLabel = 'DEV BUILD (AHEAD)';
@@ -142,6 +146,9 @@ class UpgateSettingsSection extends StatelessWidget {
           children: [
             Card(
               margin: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -287,6 +294,9 @@ class UpgateSettingsSection extends StatelessWidget {
               const SizedBox(height: 14),
               Card(
                 margin: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(

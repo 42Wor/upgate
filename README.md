@@ -202,4 +202,6 @@ Zero `dart:io` imports; reloads or navigates cleanly via `url_launcher` (`webOnl
 
 Created and maintained by **Maaz Waheed**.
 
+See [ROADMAP.md](ROADMAP.md) for upcoming features (OS download notifications, HTTP `Range` resume, theme presets, and Ed25519 signatures).
+
 Released under the [MIT License](LICENSE).
