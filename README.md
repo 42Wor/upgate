@@ -2,72 +2,86 @@
 
 Multi-platform OTA update gating, 5-level policy enforcement, streaming SHA-256 verified installer staging, and adaptive Material 3 update UI for Flutter apps — across **Android, iOS, Windows, macOS, Linux, and Web**.
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Dart](https://img.shields.io/badge/Dart-%3E%3D3.4.0-0175C2?logo=dart)](https://dart.dev)
+[![Flutter](https://img.shields.io/badge/Flutter-%3E%3D3.22.0-02569B?logo=flutter)](https://flutter.dev)
+[![Platforms](https://img.shields.io/badge/Platforms-Android%20%7C%20iOS%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-008069)](#6-platform-setup-guide)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
 
-## Features
+## Feature Matrix
 
-- **3 Modular Usage Modes**:
-  1. **Full OTA & Governance (`MbkRegistryProvider`)** — Server-driven 5-level policy tiers, `ETag`/`304` caching, `426` enforcement, deterministic `device_id` staged rollouts, `evaluated_for_version` offline cache invalidation, and automatic `UP_TO_DATE` artifact metadata enrichment.
-  2. **No-Backend Static JSON (`JsonManifestProvider`)** — Host a single `version.json` on GitHub Pages, S3, or Cloudflare R2 with built-in client-side SemVer 2.0.0 comparison (including pre-release tags and `+build` numbers).
-  3. **Standalone Installer-Only (`UpgateInstaller`)** — Download, stream-verify SHA-256 checksums, fail over across mirror URLs, and launch native OS installers with a single function call (`installFromUrl`).
-- **Streaming Chunked SHA-256 Verification** — Never buffers large installers in RAM (`openRead()`). Corrupt or mismatched files are deleted automatically.
-- **Zero `dart:io` on Web** — Conditional imports guarantee clean compilation on all 6 Flutter targets.
-- **Theme-Native Material 3 Widgets** — `UpgateGuard`, `UpgateDialog`, `UpgateBlockScreen`, `UpgateBadge`, and `UpgateSettingsSection` inherit `Theme.of(context)` and `ColorScheme` automatically, with optional custom builders.
-- **HTTP `426` Version Gate Client** — `VersionGateHttpClient` awaits and caches installed `version+build` before the first request, injects `X-App-*` headers, and reacts to HTTP `426 Upgrade Required`.
+| Capability | Details |
+|:---|:---|
+| **3 Modular Usage Modes** | Full Registry V2 (`Upgate.initializeRegistry`), Static JSON (`JsonManifestProvider`), or Standalone Installer (`UpgateInstaller`) |
+| **Zero-Boilerplate Auto-Detection** | Automatically detects OS (`android`, `ios`, `windows`, `macos`, `linux`, `web`) and CPU architecture (`arm64-v8a`, `x64`, `cloud_edge`, etc.) |
+| **5-Level Policy Engine** | `0` Up to Date, `1` Silent Badge, `2` Floating Banner + Prefetch, `3` Modal Reminder (`remindIntervalHours`), `4` Hard Block, `5` Kill Switch / Maintenance |
+| **Dev Build Safety** | SemVer comparison automatically detects when local build `> server` (`DEV BUILD (AHEAD)`) and suppresses false update prompts |
+| **Streaming SHA-256 Integrity** | Chunked `openRead()` verification with zero RAM buffering and automatic mirror failover |
+| **HTTP `426` Version Gate** | `VersionGateHttpClient` awaits & caches `version+build` on the first request, injects `X-App-*` headers, and triggers enforcement on `426` |
+| **Theme-Native Material 3 UI** | `UpgateGuard`, `UpgateDialog`, `UpgateBlockScreen`, `UpgateBadge`, and `UpgateSettingsSection` inherit `Theme.of(context)` / `ColorScheme` |
 
 ---
 
-## Architecture
+## How & Where It Works in Your App
 
 ```text
-+-------------------------------------------------------------------+
-|                        Flutter Application                        |
-|  UpgateGuard  |  UpgateDialog  |  UpgateBadge  |  SettingsSection |
-+-------------------------------------------------------------------+
-                                 |
-                                 v
-+-------------------------------------------------------------------+
-|                         UpgateController                          |
-|  - In-flight check deduplication & 15m resume throttle            |
-|  - remindIntervalHours persistence & silent background pre-stage  |
-+-------------------------------------------------------------------+
-             |                                      |
-             v                                      v
-+-------------------------+          +------------------------------+
-|    ManifestProvider     |          |       UpgateInstaller        |
-| - MbkRegistryProvider   |          | - Streaming SHA-256 verify   |
-| - JsonManifestProvider  |          | - Mirror failover            |
-| - Custom implementations|          | - Android/Win/Mac/Linux/Web  |
-+-------------------------+          +------------------------------+
++----------------------------------------------------------------------+
+|  1. main() / Bootstrap                                               |
+|     Upgate.initializeRegistry(appCode: 'REG_4829105736')             |
++----------------------------------------------------------------------+
+         |                        |                        |
+         v                        v                        v
++------------------+   +--------------------+   +----------------------+
+| 2. Root Widget   |   | 3. API HTTP Layer  |   | 4. Navigation & UI   |
+| UpgateGuard(     |   | VersionGateHttp    |   | - UpgateBadge()      |
+|   child: Home()  |   |   Client(          |   |   (AppBar / Drawer)  |
+| )                |   |   controller: ...  |   | - UpgateSettings     |
+| - 15m resume chk |   | )                  |   |   Section()          |
+| - Banner / Modal |   | - X-App-* headers  |   |   (Settings Screen)  |
+| - Hard Block UI  |   | - 426 interception |   |                      |
++------------------+   +--------------------+   +----------------------+
 ```
 
 ---
 
-## Quick Start
+## The App Registration Key (`REG_...`) System
+
+When using **MBK Registry V2** (or any compatible registry), your application is identified by a single unified Registration Key (`appCode`, e.g. `REG_4829105736`).
+
+* **One Key, All Platforms**: You pass only `appCode: 'REG_...'`. `upgate` automatically detects the running OS and CPU architecture, matches the right binary artifact on the server, and persists an anonymous `device_id` for deterministic percentage rollouts.
+* **Customizing Server, Failover, Channel & Auth**:
+  ```dart
+  final controller = Upgate.initializeRegistry(
+    appCode: 'REG_4829105736',
+    baseUrl: 'https://core.mbktech.org',
+    fallbackBaseUrls: ['https://backup.mbktech.org'],
+    channel: 'production', // or 'beta', 'alpha'
+    authTokenProvider: () async => await secureStorage.read(key: 'token'),
+  );
+  ```
+
+---
+
+## Quick Start (All 3 Usage Modes)
 
 Add `upgate` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  upgate: ^1.0.0
+  upgate: ^1.1.0
 ```
 
-### Mode 1: Full OTA & Governance (`MbkRegistryProvider`)
+### Mode 1: MBK Registry V2 (Registration Key Only)
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:upgate/upgate.dart';
 
 void main() {
-  final controller = Upgate.initialize(
-    config: const UpgateConfig(
-      appCode: 'APP_MYAPP_ANDR_001',
-      baseUrl: 'https://core.example.com',
-      channel: 'production',
-    ),
-    provider: MbkRegistryProvider(),
+  final controller = Upgate.initializeRegistry(
+    appCode: 'REG_4829105736',
+    baseUrl: 'https://core.mbktech.org',
   );
 
   runApp(
@@ -81,9 +95,9 @@ void main() {
 }
 ```
 
-### Mode 2: No-Backend Static JSON (`JsonManifestProvider`)
+### Mode 2: Static JSON / No-Backend (`JsonManifestProvider`)
 
-Host a `version.json` file on GitHub Pages, S3, or any static CDN:
+Host a `version.json` file on GitHub Pages, S3, Cloudflare R2, or any static CDN:
 
 ```json
 {
@@ -112,8 +126,6 @@ Host a `version.json` file on GitHub Pages, S3, or any static CDN:
 }
 ```
 
-Initialize `Upgate` with `JsonManifestProvider`:
-
 ```dart
 final controller = Upgate.initialize(
   config: const UpgateConfig(channel: 'stable'),
@@ -125,7 +137,7 @@ final controller = Upgate.initialize(
 
 ### Mode 3: Standalone Installer-Only (`UpgateInstaller`)
 
-If you only need cross-platform downloading, streaming SHA-256 verification, and OS-native installer launching without `UpgateGuard` or a manifest server:
+Download, stream-verify SHA-256, fail over across mirrors, and launch the OS installer directly without `UpgateGuard` or a version-check server:
 
 ```dart
 final installer = UpgateInstaller(); // or Upgate.installer
@@ -147,77 +159,42 @@ await installer.installFromUrl(
 ### Android (`apk` sideloading)
 
 1. Add `REQUEST_INSTALL_PACKAGES` to `android/app/src/main/AndroidManifest.xml`:
-
-```xml
-<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-```
-
-2. Configure a `FileProvider` inside `<application>` in `AndroidManifest.xml`:
-
-```xml
-<provider
-    android:name="androidx.core.content.FileProvider"
-    android:authorities="${applicationId}.fileProvider"
-    android:exported="false"
-    android:grantUriPermissions="true">
-    <meta-data
-        android:name="android.support.FILE_PROVIDER_PATHS"
-        android:resource="@xml/file_paths" />
-</provider>
-```
-
+   ```xml
+   <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+   ```
+2. Add `FileProvider` inside `<application>`:
+   ```xml
+   <provider
+       android:name="androidx.core.content.FileProvider"
+       android:authorities="${applicationId}.fileProvider"
+       android:exported="false"
+       android:grantUriPermissions="true">
+       <meta-data
+           android:name="android.support.FILE_PROVIDER_PATHS"
+           android:resource="@xml/file_paths" />
+   </provider>
+   ```
 3. Create `android/app/src/main/res/xml/file_paths.xml`:
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<paths>
-    <cache-path name="cache" path="." />
-    <external-cache-path name="external_cache" path="." />
-    <files-path name="files" path="." />
-</paths>
-```
+   ```xml
+   <?xml version="1.0" encoding="utf-8"?>
+   <paths>
+       <cache-path name="cache" path="." />
+       <external-cache-path name="external_cache" path="." />
+       <files-path name="files" path="." />
+   </paths>
+   ```
 
 ### iOS (`store_redirect`)
-
-Direct binary sideloading is restricted on iOS. Set `install_strategy: "store_redirect"` with your App Store URL (`https://apps.apple.com/app/id...`). `upgate` launches it via `LaunchMode.externalApplication`.
+Set `install_strategy: "store_redirect"` with your App Store URL (`https://apps.apple.com/app/id...`).
 
 ### Windows (`exe` / `msi`)
-
-`upgate` verifies SHA-256, spawns the installer with `ProcessStartMode.detached`, verifies `pid > 0`, and exits cleanly so the installer can overwrite locked binaries. Pass silent flags via `installer_args` (e.g. `"/SILENT"`).
+Verifies SHA-256, spawns the installer via `ProcessStartMode.detached`, verifies `pid > 0`, and exits cleanly so locked binaries can be overwritten.
 
 ### macOS (`dmg` / `pkg`) & Linux (`deb` / `AppImage`)
-
-`upgate` downloads and verifies the package locally, launches it via `open` (macOS) or `xdg-open` (Linux), and falls back to `url_launcher` if needed.
+Downloads & verifies locally, launches via `open` (macOS) or `xdg-open` (Linux), with `url_launcher` fallback.
 
 ### Web (`web_reload`)
-
-`upgate` avoids `dart:io` entirely on Web and triggers a cache-busting reload or navigation via `url_launcher` (`webOnlyWindowName: '_self'`).
-
----
-
-## HTTP Version Gate & Custom UI
-
-Wrap your `http.Client` with `VersionGateHttpClient` to attach `X-App-Version`, `X-Platform`, `X-App-Arch`, and `X-App-Code` to every API request and react to HTTP `426 Upgrade Required`:
-
-```dart
-final client = VersionGateHttpClient(
-  controller: controller,
-  onUpgradeRequired: () => debugPrint('Server requested mandatory upgrade!'),
-);
-```
-
-Customize `UpgateGuard` banners or blocking screens while keeping default Material 3 theme inheritance everywhere else:
-
-```dart
-UpgateGuard(
-  controller: controller,
-  bannerBuilder: (context, manifest, ctrl, onDismiss) => MyCustomBanner(...),
-  blockScreenBuilder: (context) => MyCustomBlockScreen(...),
-  child: const MyAppHome(),
-)
-```
-
-Embed `UpgateSettingsSection(controller: controller)` in your Settings screen and `UpgateBadge(controller: controller)` in your `AppBar`.
+Zero `dart:io` imports; reloads or navigates cleanly via `url_launcher` (`webOnlyWindowName: '_self'`).
 
 ---
 

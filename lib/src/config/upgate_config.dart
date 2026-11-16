@@ -6,6 +6,7 @@ class UpgateConfig {
   const UpgateConfig({
     this.appCode = 'UPGATE_APP',
     this.baseUrl = '',
+    this.fallbackBaseUrls = const [],
     this.channel = 'production',
     this.fallbackVersion = '1.0.0+1',
     this.platform,
@@ -14,15 +15,19 @@ class UpgateConfig {
     this.checkTimeout = const Duration(seconds: 10),
     this.resumeThrottle = const Duration(minutes: 15),
     this.customHeaders = const {},
+    this.authTokenProvider,
     this.localStoragePrefix = 'upgate',
     this.enrichUpToDateFromManifest = true,
   });
 
-  /// Unique application identifier in the update registry (e.g. `APP_BEYV_ANDR_D352`).
+  /// Unique application identifier in the update registry (e.g. `REG_4829105736`).
   final String appCode;
 
   /// Base URL of the update server (required for `MbkRegistryProvider`).
   final String baseUrl;
+
+  /// Optional ordered failover gateway base URLs tried if [baseUrl] is unreachable.
+  final List<String> fallbackBaseUrls;
 
   /// Release channel to track (e.g. `production`, `stable`, `beta`, `alpha`).
   final String channel;
@@ -51,6 +56,9 @@ class UpgateConfig {
 
   /// Optional additional HTTP headers included on update requests.
   final Map<String, String> customHeaders;
+
+  /// Optional async bearer token provider for authenticated private registries.
+  final Future<String?> Function()? authTokenProvider;
 
   /// Key prefix used in `SharedPreferences` for caches, ETag, and `device_id`.
   final String localStoragePrefix;

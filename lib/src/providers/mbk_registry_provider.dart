@@ -108,15 +108,20 @@ class MbkRegistryProvider implements ManifestProvider {
     }
   }
 
-  List<String> _resolveCandidateBaseUrls(String baseUrl) {
-    final trimmed = baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
-    if (trimmed.isEmpty) return const [];
-    final list = <String>[trimmed];
+  List<String> _resolveCandidateBaseUrls(UpgateConfig config) {
+    final list = <String>[];
+    for (final raw in [config.baseUrl, ...config.fallbackBaseUrls]) {
+      final trimmed = raw.trim().replaceAll(RegExp(r'/+$'), '');
+      if (trimmed.isNotEmpty && !list.contains(trimmed)) {
+        list.add(trimmed);
+      }
+    }
+    if (list.isEmpty) return const [];
     if (kIsWeb) {
       final currentHost = Uri.base.host.toLowerCase();
       if (currentHost == 'localhost' || currentHost == '127.0.0.1') {
         try {
-          final uri = Uri.parse(trimmed);
+          final uri = Uri.parse(list.first);
           if (uri.host != 'localhost' && uri.host != '127.0.0.1') {
             final port = uri.hasPort ? uri.port : 5001;
             final localUrl = '${uri.scheme}://localhost:$port';
@@ -140,7 +145,7 @@ class MbkRegistryProvider implements ManifestProvider {
     final sw = Stopwatch()..start();
     final platform = config.resolvedPlatform;
     final arch = config.resolvedArchitecture;
-    final candidateUrls = _resolveCandidateBaseUrls(config.baseUrl);
+    final candidateUrls = _resolveCandidateBaseUrls(config);
     if (candidateUrls.isEmpty) {
       return UpdateManifest.offline(currentVersion: currentVersion, latencyMs: 0);
     }
@@ -165,6 +170,9 @@ class MbkRegistryProvider implements ManifestProvider {
       if (buildNumber != null) 'build_number': '$buildNumber',
     };
 
+    final authToken = config.authTokenProvider != null
+        ? await config.authTokenProvider!()
+        : null;
     final headers = <String, String>{
       'Accept': 'application/json',
       'X-App-Code': config.appCode,
@@ -172,6 +180,8 @@ class MbkRegistryProvider implements ManifestProvider {
       'X-App-Arch': arch,
       'X-App-Version': currentVersion,
       'X-Device-Id': effectiveDeviceId,
+      if (authToken != null && authToken.trim().isNotEmpty)
+        'Authorization': 'Bearer ${authToken.trim()}',
       ...config.customHeaders,
     };
     if (cachedEtag != null && cachedEtag.isNotEmpty) {
@@ -261,6 +271,10 @@ class MbkRegistryProvider implements ManifestProvider {
           } catch (_) {}
         }
 
+        if (res.statusCode >= 500 && i < candidateUrls.length - 1) {
+          continue;
+        }
+
         final cached = await getCachedManifest(config, currentVersion);
         if (cached != null) {
           return cached.copyWith(latencyMs: latency, checkedAt: DateTime.now());
@@ -341,7 +355,7 @@ class MbkRegistryProvider implements ManifestProvider {
   }) async {
     final targetPlatform = config.resolvedPlatform;
     final targetArch = config.resolvedArchitecture;
-    final candidateUrls = _resolveCandidateBaseUrls(config.baseUrl);
+    final candidateUrls = _resolveCandidateBaseUrls(config);
     if (candidateUrls.isEmpty) return null;
 
     for (var i = 0; i < candidateUrls.length; i++) {

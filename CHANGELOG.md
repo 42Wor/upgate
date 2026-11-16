@@ -5,6 +5,13 @@ All notable changes to `upgate` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-17
+
+### Added
+- **Zero-Boilerplate Registration Key Initializer (`Upgate.initializeRegistry`)**: Initialize MBK Registry V2 with just your `appCode` (`REG_...`), automatic platform & CPU architecture detection, `fallbackBaseUrls`, and optional `authTokenProvider`.
+- **Dev Build (Ahead-of-Server) Detection**: `UpdateManifest.isAheadOfServer` and `normalizedForInstalledVersion` prevent local development builds (`installedVersion > serverVersion`) from triggering update banners, modals, or blocking screens.
+- **`UP_TO_DATE` Artifact Enrichment & Two-Card Settings UI**: `UpgateSettingsSection` now renders structured **OTA Distribution** (`DEV BUILD (AHEAD)`, `UP TO DATE`, `UPDATE AVAILABLE`, `UPDATE REQUIRED`) and **Registry & Artifact Metadata** cards with copyable App Key and SHA-256 checksum.
+
 ## [1.0.0] - 2026-11-17
 
 ### Added

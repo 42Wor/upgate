@@ -470,4 +470,47 @@ void main() {
       expect(installer.lastInstalledVersion, '1.2.0');
     });
   });
+
+  group('Upgate.initializeRegistry', () {
+    test('configures MbkRegistryProvider with auto-detected platform, fallback URLs, and authTokenProvider',
+        () async {
+      String? authHeader;
+      final attemptedHosts = <String>[];
+
+      final mockClient = MockClient((req) async {
+        if (req.url.path.endsWith('/check')) {
+          attemptedHosts.add(req.url.host);
+          authHeader = req.headers['Authorization'];
+        }
+        if (req.url.host == 'primary.example.com') {
+          return http.Response('Bad Gateway', 502);
+        }
+        return http.Response(
+          jsonEncode({
+            'status': 'UP_TO_DATE',
+            'latest_version': '1.0.0',
+            'policy': {'priority': 0},
+          }),
+          200,
+        );
+      });
+
+      final controller = Upgate.initializeRegistry(
+        appCode: 'REG_4829105736',
+        baseUrl: 'https://primary.example.com',
+        fallbackBaseUrls: const ['https://backup.example.com'],
+        authTokenProvider: () async => 'secret-token',
+        provider: MbkRegistryProvider(httpClient: mockClient),
+        versionResolver: () async => '1.0.0+1',
+      );
+
+      final manifest = await controller.checkForUpdate();
+      expect(controller.config.appCode, 'REG_4829105736');
+      expect(controller.config.resolvedPlatform, isNotEmpty);
+      expect(controller.config.resolvedArchitecture, isNotEmpty);
+      expect(attemptedHosts, ['primary.example.com', 'backup.example.com']);
+      expect(authHeader, 'Bearer secret-token');
+      expect(manifest?.status, 'UP_TO_DATE');
+    });
+  });
 }

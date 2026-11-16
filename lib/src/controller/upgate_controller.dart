@@ -72,6 +72,39 @@ class Upgate {
     return controller;
   }
 
+  /// Zero-boilerplate initializer for MBK Registry V2 using only your
+  /// Registration Key (`appCode`, e.g. `REG_4829105736`).
+  ///
+  /// Platform and CPU architecture are detected automatically on all 6 Flutter
+  /// targets (Android, iOS, Windows, macOS, Linux, and Web).
+  static UpgateController initializeRegistry({
+    required String appCode,
+    String baseUrl = 'https://core.mbktech.org',
+    List<String> fallbackBaseUrls = const [],
+    String channel = 'production',
+    String fallbackVersion = '1.0.0+1',
+    Future<String?> Function()? authTokenProvider,
+    Map<String, String> customHeaders = const {},
+    ManifestProvider? provider,
+    UpgateInstaller? installer,
+    Future<String> Function()? versionResolver,
+  }) {
+    return initialize(
+      config: UpgateConfig(
+        appCode: appCode.trim(),
+        baseUrl: baseUrl,
+        fallbackBaseUrls: fallbackBaseUrls,
+        channel: channel,
+        fallbackVersion: fallbackVersion,
+        authTokenProvider: authTokenProvider,
+        customHeaders: customHeaders,
+      ),
+      provider: provider ?? MbkRegistryProvider(),
+      installer: installer,
+      versionResolver: versionResolver,
+    );
+  }
+
   /// Returns the initialized [UpgateController] singleton.
   ///
   /// Throws a [StateError] if [initialize] has not been called.
