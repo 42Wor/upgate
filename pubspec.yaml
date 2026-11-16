@@ -1,0 +1,35 @@
+name: upgate
+description: >-
+  Multi-platform OTA update gating, 5-level policy enforcement, streaming
+  SHA-256 verified installer staging, and adaptive Material 3 update UI.
+version: 1.0.0
+homepage: https://github.com/42Wor/upgate
+repository: https://github.com/42Wor/upgate
+issue_tracker: https://github.com/42Wor/upgate/issues
+
+topics:
+  - ota-updates
+  - app-update
+  - version-check
+  - installer
+  - sha256
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.2
+  package_info_plus: ^8.0.0
+  path_provider: ^2.1.4
+  shared_preferences: ^2.3.2
+  crypto: ^3.0.3
+  url_launcher: ^6.3.0
+  open_filex: ^4.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0

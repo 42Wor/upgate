@@ -1,0 +1,16 @@
+name: upgate_example
+description: Example Flutter app demonstrating upgate integration.
+publish_to: none
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  upgate:
+    path: ../
+
+flutter:
+  uses-material-design: true

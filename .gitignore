@@ -1,0 +1,17 @@
+# Dart & Flutter build artifacts
+.dart_tool/
+.packages
+build/
+pubspec.lock
+
+# Example app artifacts
+example/.dart_tool/
+example/build/
+example/pubspec.lock
+
+# IDE & OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
