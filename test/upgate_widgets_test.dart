@@ -201,14 +201,58 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: UpgateSettingsSection(controller: controller),
+          body: SingleChildScrollView(
+            child: UpgateSettingsSection(controller: controller),
+          ),
         ),
       ),
     );
 
-    expect(find.text('Software Updates'), findsOneWidget);
+    expect(find.text('OTA Distribution'), findsOneWidget);
+    expect(find.text('Registry & Artifact Metadata'), findsOneWidget);
     expect(find.textContaining('app-1.3.1.apk'), findsOneWidget);
     expect(find.textContaining('2.0 MB'), findsOneWidget);
-    expect(find.text('Check'), findsOneWidget);
+    expect(find.text('Check for Updates'), findsOneWidget);
+  });
+
+  testWidgets('UpgateSettingsSection shows DEV BUILD (AHEAD) when local > server',
+      (tester) async {
+    final manifest = UpdateManifest.fromJson({
+      'status': 'UP_TO_DATE',
+      'latest_version': '1.3.0',
+      'policy': {'priority': 0},
+      'artifact': {
+        'filename': 'app-1.3.0.exe',
+        'download_url': 'https://cdn.example.com/app-1.3.0.exe',
+        'file_size_bytes': 1048576,
+      },
+    }, '1.4.0+14');
+
+    final controller = UpgateController(
+      config: const UpgateConfig(
+        appCode: 'APP_WIDGET_05',
+        platform: 'windows',
+        architecture: 'x64',
+      ),
+      provider: _StubProvider(manifest),
+      installer: _NoopInstaller(),
+      versionResolver: () async => '1.4.0+14',
+    );
+    await controller.checkForUpdate();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: UpgateSettingsSection(controller: controller),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('DEV BUILD (AHEAD)'), findsOneWidget);
+    expect(find.text('Ahead of Server (Dev Build)'), findsOneWidget);
+    expect(find.text('Local: v1.4.0+14 • Server: v1.3.0'), findsOneWidget);
+    expect(find.text('Download v1.3.0'), findsOneWidget);
   });
 }

@@ -102,7 +102,7 @@ class MbkRegistryProvider implements ManifestProvider {
           manifest.priority == 5) {
         return null;
       }
-      return manifest;
+      return manifest.normalizedForInstalledVersion(currentVersion);
     } catch (_) {
       return null;
     }
@@ -202,7 +202,7 @@ class MbkRegistryProvider implements ManifestProvider {
                 platform: platform,
                 latencyMs: latency,
                 checkedAt: DateTime.now(),
-              );
+              ).normalizedForInstalledVersion(currentVersion);
               return await _maybeEnrichUpToDate(config, cachedManifest, currentVersion);
             } catch (_) {}
           }
@@ -222,7 +222,7 @@ class MbkRegistryProvider implements ManifestProvider {
             platform: platform,
             latencyMs: latency,
             checkedAt: DateTime.now(),
-          );
+          ).normalizedForInstalledVersion(currentVersion);
 
           final isTransientBlock = manifest.status == 'MAINTENANCE' ||
               manifest.status == 'UNREGISTERED' ||
@@ -256,7 +256,7 @@ class MbkRegistryProvider implements ManifestProvider {
                 platform: platform,
                 latencyMs: latency,
                 checkedAt: DateTime.now(),
-              );
+              ).normalizedForInstalledVersion(currentVersion);
             }
           } catch (_) {}
         }

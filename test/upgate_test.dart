@@ -321,6 +321,30 @@ void main() {
       expect(await provider.getCachedManifest(config, '1.3.1+13'), isNotNull);
       expect(await provider.getCachedManifest(config, '1.3.2+14'), isNull);
     });
+
+    test('normalizes ahead-of-server local dev build to non-gating UP_TO_DATE',
+        () async {
+      final mockClient = MockClient((req) async {
+        return http.Response(
+          jsonEncode({
+            'status': 'UPDATE_MANDATORY',
+            'latest_version': '1.3.0',
+            'policy': {'priority': 4},
+          }),
+          200,
+        );
+      });
+
+      final provider = MbkRegistryProvider(httpClient: mockClient);
+      final res = await provider.checkForUpdate(
+        config: config,
+        currentVersion: '1.4.0+14',
+      );
+      expect(res.status, 'UP_TO_DATE');
+      expect(res.isBlocking, isFalse);
+      expect(res.hasUpdate, isFalse);
+      expect(res.isAheadOfServer('1.4.0+14'), isTrue);
+    });
   });
 
   group('JsonManifestProvider & Semver', () {

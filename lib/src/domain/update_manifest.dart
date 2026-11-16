@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+import '../utils/semver.dart';
+
 /// Policy severity levels returned by an update server.
 enum UpdateTier {
   /// Running version matches or exceeds the latest available release (level 0).
@@ -502,6 +504,38 @@ class UpdateManifest {
   /// Priority 1 Silent badge mode (settings / badge indicator only).
   bool get isSilentBadgeMode =>
       hasUpdate && !isBlocking && (priority == 1 || policy.uiMode == 'SILENT_BADGE');
+
+  /// True if the running [installedVersion] is strictly ahead of [latestVersion]
+  /// (e.g. a local development build `1.4.0+14` vs published `1.3.0`).
+  bool isAheadOfServer(String installedVersion) {
+    if (isOffline ||
+        status == 'MAINTENANCE' ||
+        status == 'UNREGISTERED' ||
+        latestVersion.trim().isEmpty ||
+        installedVersion.trim().isEmpty) {
+      return false;
+    }
+    return Semver.compare(installedVersion, latestVersion) > 0;
+  }
+
+  /// Returns a non-gating `UP_TO_DATE` copy when [installedVersion] is ahead
+  /// of [latestVersion], preserving server metadata (`latestVersion`,
+  /// `primaryArtifact`, `releaseNotes`) for display in Settings.
+  UpdateManifest normalizedForInstalledVersion(String installedVersion) {
+    if (!isAheadOfServer(installedVersion)) return this;
+    return copyWith(
+      status: 'UP_TO_DATE',
+      policy: UpdatePolicy(
+        tier: UpdateTier.upToDate,
+        isUpdateAvailable: false,
+        isForced: false,
+        uiMode: 'NONE',
+        preDownload: false,
+        remindIntervalHours: policy.remindIntervalHours,
+        channel: policy.channel,
+      ),
+    );
+  }
 
   /// Formatted human-readable artifact size (e.g. `24.5 MB` or `Pending`).
   String get humanSize {
