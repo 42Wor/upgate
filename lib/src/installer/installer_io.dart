@@ -388,6 +388,11 @@ class IoUpgateInstaller implements UpgateInstaller {
         filePath,
         type: 'application/vnd.android.package-archive',
       );
+      if (result.type == ResultType.permissionDenied) {
+        throw Exception(
+          'Install permission denied. Enable "Install unknown apps" for this app in Android Settings and try again. (${result.message})',
+        );
+      }
       if (result.type != ResultType.done) {
         throw Exception('Installer launch failed: ${result.message}');
       }
