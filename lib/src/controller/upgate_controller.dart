@@ -318,33 +318,63 @@ class UpgateController extends ChangeNotifier {
     }
   }
 
+  /// Updates manifest directly (e.g. from 426 Upgrade Required body)
+  void setManifest(UpdateManifest manifest) {
+    _manifest = manifest;
+    _lastCheckedAt = manifest.checkedAt ?? DateTime.now();
+    _isDismissed = false;
+    if (manifest.hasUpdate) {
+      _state = UpdateState.updateAvailable;
+      _statusMessage = 'Update v${manifest.latestVersion} available';
+    } else {
+      _state = UpdateState.upToDate;
+      _statusMessage = '';
+    }
+    notifyListeners();
+  }
+
+  Future<String?>? _inFlightDownload;
+
   void _runSilentPreDownload(UpdateManifest manifest, UpdateArtifact artifact) {
     _state = UpdateState.preDownloading;
     _downloadProgress = 0.0;
     _statusMessage = 'Pre-downloading update in background...';
     notifyListeners();
 
-    unawaited(
-      _installer
-          .downloadAndVerify(
-        url: artifact.downloadUrl,
-        fallbackUrls: artifact.fallbackUrls,
-        version: manifest.latestVersion,
-        expectedSha256: artifact.sha256,
-        fileName: artifact.fileName,
-        packageFormat: artifact.packageFormat,
-        cacheKey: config.appCode,
-        onProgress: (p) {
+    final task = _installer.downloadAndVerify(
+      url: artifact.downloadUrl,
+      fallbackUrls: artifact.fallbackUrls,
+      version: manifest.latestVersion,
+      expectedSha256: artifact.sha256,
+      fileName: artifact.fileName,
+      packageFormat: artifact.packageFormat,
+      cacheKey: config.appCode,
+      onProgress: (p) {
+        if (_state == UpdateState.preDownloading) {
           _downloadProgress = p.progress;
           _progressText = '${p.receivedMb} / ${p.totalMb} MB (${p.percentage}%)';
           notifyListeners();
-        },
-        onStatus: (msg) {
+        }
+      },
+      onStatus: (msg) {
+        if (_state == UpdateState.preDownloading) {
           _statusMessage = msg;
           notifyListeners();
-        },
-      )
-          .then((path) {
+        }
+      },
+    );
+    _inFlightDownload = task;
+
+    unawaited(
+      task.then((path) {
+        if (identical(_inFlightDownload, task)) {
+          _inFlightDownload = null;
+        }
+        if (_state == UpdateState.downloading ||
+            _state == UpdateState.verifying ||
+            _state == UpdateState.installing) {
+          return;
+        }
         if (path != null) {
           _state = UpdateState.readyToInstall;
           _statusMessage = 'Update v${manifest.latestVersion} ready to install.';
@@ -354,6 +384,14 @@ class UpgateController extends ChangeNotifier {
         }
         notifyListeners();
       }).catchError((_) {
+        if (identical(_inFlightDownload, task)) {
+          _inFlightDownload = null;
+        }
+        if (_state == UpdateState.downloading ||
+            _state == UpdateState.verifying ||
+            _state == UpdateState.installing) {
+          return;
+        }
         _state = UpdateState.updateAvailable;
         _statusMessage = '';
         notifyListeners();
@@ -414,6 +452,13 @@ class UpgateController extends ChangeNotifier {
       _state = UpdateState.error;
       notifyListeners();
       return;
+    }
+
+    // Await silent pre-download if already running to avoid concurrent file collision
+    if (_inFlightDownload != null) {
+      try {
+        await _inFlightDownload;
+      } catch (_) {}
     }
 
     _lastError = null;

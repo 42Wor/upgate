@@ -1,3 +1,4 @@
+import 'dart:async' show TimeoutException;
 import 'dart:io' show File, Platform, Process, ProcessStartMode, exit;
 
 import 'package:crypto/crypto.dart';
@@ -196,7 +197,12 @@ class IoUpgateInstaller implements UpgateInstaller {
         final shaSink = sha256.startChunkedConversion(collector);
 
         try {
-          await for (final chunk in streamedResponse.stream) {
+          await for (final chunk in streamedResponse.stream.timeout(
+            const Duration(seconds: 30),
+            onTimeout: (sink) => sink.addError(
+              TimeoutException('Stream inactivity timeout of 30 seconds exceeded.'),
+            ),
+          )) {
             fileSink.add(chunk);
             shaSink.add(chunk);
             receivedBytes += chunk.length;
@@ -214,6 +220,12 @@ class IoUpgateInstaller implements UpgateInstaller {
           await fileSink.flush();
           await fileSink.close();
           shaSink.close();
+
+          if (totalBytes > 0 && receivedBytes != totalBytes) {
+            throw Exception(
+              'Truncated payload: received $receivedBytes bytes out of $totalBytes expected.',
+            );
+          }
         } catch (e) {
           await fileSink.close();
           if (await targetFile.exists()) {
@@ -364,12 +376,17 @@ class IoUpgateInstaller implements UpgateInstaller {
       onStatus?.call('Starting Windows installer process...');
       final argsList = <String>[];
       if (installerArgs != null && installerArgs.trim().isNotEmpty) {
-        argsList.addAll(installerArgs.trim().split(RegExp(r'\s+')));
+        final reg = RegExp(r'[^\s"]+|"([^"]*)"');
+        for (final match in reg.allMatches(installerArgs.trim())) {
+          final group1 = match.group(1);
+          argsList.add(group1 ?? match.group(0)!);
+        }
       }
+      final isExe = filePath.toLowerCase().endsWith('.exe');
       final process = await Process.start(
         filePath,
         argsList,
-        runInShell: true,
+        runInShell: !isExe,
         mode: ProcessStartMode.detached,
       );
       if (process.pid <= 0) {

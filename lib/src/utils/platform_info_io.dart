@@ -16,6 +16,9 @@ String detectArchitecture() {
   if (v.contains('arm64') || v.contains('aarch64')) {
     return Platform.isAndroid ? 'arm64-v8a' : 'arm64';
   }
+  if (v.contains('arm') || v.contains('armeabi')) {
+    return Platform.isAndroid ? 'armeabi-v7a' : 'arm';
+  }
   if (v.contains('x64') || v.contains('x86_64') || v.contains('amd64')) {
     return 'x64';
   }

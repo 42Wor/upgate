@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart' show VoidCallback;
 import 'package:http/http.dart' as http;
 
 import '../controller/upgate_controller.dart';
+import '../domain/update_manifest.dart';
 import '../utils/platform_info.dart';
 
 /// Callback invoked when the server responds with an update enforcement signal
@@ -102,8 +105,30 @@ class VersionGateHttpClient extends http.BaseClient {
       final activeController =
           controller ?? (Upgate.isInitialized ? Upgate.instance : null);
       if (activeController != null) {
-        // Trigger a background refresh so UpgateGuard enforces the new policy.
-        activeController.checkForUpdate(force: true);
+        // Read body to parse V2 manifest if provided by 426 Upgrade Required
+        final bodyBytes = await response.stream.toBytes();
+        try {
+          final bodyStr = utf8.decode(bodyBytes);
+          final json = jsonDecode(bodyStr);
+          if (json is Map<String, dynamic>) {
+            final manifest = UpdateManifest.fromJson(json, _cachedVersion ?? fallbackVersion);
+            activeController.setManifest(manifest);
+          } else {
+            activeController.checkForUpdate(force: true);
+          }
+        } catch (_) {
+          activeController.checkForUpdate(force: true);
+        }
+        return http.StreamedResponse(
+          Stream.fromIterable([bodyBytes]),
+          response.statusCode,
+          contentLength: bodyBytes.length,
+          request: response.request,
+          headers: response.headers,
+          isRedirect: response.isRedirect,
+          persistentConnection: response.persistentConnection,
+          reasonPhrase: response.reasonPhrase,
+        );
       }
     }
 
