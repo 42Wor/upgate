@@ -30,7 +30,7 @@ class MbkRegistryProvider implements ManifestProvider {
       _httpClientOverride ?? (_internalClient ??= http.Client());
 
   String _etagKey(UpgateConfig config, String platform, String version) =>
-      '${config.localStoragePrefix}_etag_${config.appCode}_${platform}_$version';
+      '${config.localStoragePrefix}_etag_${config.appCode}_${platform}_${config.resolvedArchitecture}_$version';
 
   String _manifestKey(UpgateConfig config, String platform, String version) =>
       '${config.localStoragePrefix}_manifest_${config.appCode}_${platform}_$version';
@@ -379,17 +379,44 @@ class MbkRegistryProvider implements ManifestProvider {
           Map<String, dynamic>? matchedArtifact;
 
           if (rawArtifacts is List) {
-            for (final art in rawArtifacts) {
-              if (art is Map<String, dynamic>) {
-                final p = art['platform']?.toString().toLowerCase();
-                final a = art['architecture']?.toString().toLowerCase();
-                if (p == targetPlatform &&
-                    (a == targetArch || a == 'universal' || a == null)) {
-                  matchedArtifact = art;
-                  break;
-                }
+            final platArts = rawArtifacts
+                .whereType<Map<String, dynamic>>()
+                .where((art) =>
+                    art['platform']?.toString().toLowerCase() == targetPlatform)
+                .toList();
+            for (final art in platArts) {
+              final a = art['architecture']?.toString().toLowerCase();
+              if (a == targetArch) {
+                matchedArtifact = art;
+                break;
               }
             }
+            matchedArtifact ??= platArts.cast<Map<String, dynamic>?>().firstWhere(
+              (art) {
+                final a = art?['architecture']?.toString().toLowerCase() ?? '';
+                if (targetArch.contains('arm64') || targetArch.contains('aarch64')) {
+                  return a.contains('arm64') || a.contains('aarch64');
+                }
+                if (targetArch.contains('armeabi') || targetArch.contains('armv7')) {
+                  return a.contains('armeabi') || a.contains('armv7');
+                }
+                if (targetArch.contains('x64') || targetArch.contains('x86_64')) {
+                  return a.contains('x64') || a.contains('x86_64');
+                }
+                if (targetArch == 'x86' || targetArch == 'ia32') {
+                  return a == 'x86' || a == 'ia32';
+                }
+                return false;
+              },
+              orElse: () => null,
+            );
+            matchedArtifact ??= platArts.cast<Map<String, dynamic>?>().firstWhere(
+              (art) {
+                final a = art?['architecture']?.toString().toLowerCase();
+                return a == 'universal' || a == 'all' || a == 'any' || a == null;
+              },
+              orElse: () => null,
+            );
           }
 
           final rawRelease = data['latest_release'] ?? data['release'];
