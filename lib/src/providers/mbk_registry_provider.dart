@@ -423,17 +423,21 @@ class MbkRegistryProvider implements ManifestProvider {
           final release = (rawRelease is Map<String, dynamic>)
               ? rawRelease
               : <String, dynamic>{};
+          final rawPriority = (release['priority_level'] as num?)?.toInt() ?? 2;
+          final rawPolicy = release['policy'] is Map<String, dynamic>
+              ? release['policy'] as Map<String, dynamic>
+              : <String, dynamic>{};
 
           return UpdateManifest.fromJson(
             {
-              'status': 'UPDATE_AVAILABLE',
+              'status': rawPriority >= 4 ? 'UPDATE_MANDATORY' : 'UPDATE_AVAILABLE',
               'latest_version': release['version'] ?? config.fallbackVersion,
-              'priority': 2,
+              'priority': rawPriority,
               'artifact': matchedArtifact ?? <String, dynamic>{},
               'notes': release['changelog'] ?? release['release_notes'],
               'policy': {
-                'priority': 2,
-                'ui_mode': 'BANNER_PREFETCH',
+                'priority': rawPriority,
+                'ui_mode': rawPolicy['ui_mode'] ?? (rawPriority >= 4 ? 'HARD_BLOCK' : (rawPriority == 1 ? 'SILENT_BADGE' : 'BANNER_PREFETCH')),
                 'channel': config.channel,
               },
             },
