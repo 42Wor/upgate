@@ -5,6 +5,13 @@ All notable changes to `upgate` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **`MbkRegistryProvider` Architecture Matching (`df73bb6`):**
+  - Updated `fetchFullManifest` to prefer exact `targetArch` and architecture family alias matches (`arm64`, `armeabi`, `x64`, `x86`) before falling back to `universal` artifacts.
+  - Included `resolvedArchitecture` in `_etagKey` to prevent cross-architecture ETag cache collisions.
+
 ## [1.1.1] - 2026-11-17
 
 ### Added
